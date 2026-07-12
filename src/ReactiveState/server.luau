@@ -32,7 +32,7 @@ Methods.__index = Methods
 -- General Helpers
 ----------------------------------------------
 
-local function isValid(State: State, path: {string}, v: any)
+local function isValid(State: State, path: {string})
     local rule = State.MetaData._Schema
 
     for i = 1, #path do
@@ -40,7 +40,7 @@ local function isValid(State: State, path: {string}, v: any)
             return false
         end
 
-        rule = rule[path[i]]
+        rule = rule[path[i]] or rule.all
 
         if rule == nil then
             return false
