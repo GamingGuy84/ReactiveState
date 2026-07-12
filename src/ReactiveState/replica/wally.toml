@@ -1,0 +1,11 @@
+[package]
+name = "ivasmigins/replica"
+description = "loleris replica"
+license = "Apache-2.0"
+authors = ["loleris"]
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+exclude = ["aftman.toml"]
+
+[dependencies]
