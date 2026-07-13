@@ -3,9 +3,7 @@ local Replica = require(script.Parent.replica)
 
 type Signal = typeof(LemonSignal.new())
 
-export type Public<T> = {
-    Data: T,
-
+export type Public<T> = (T | {any}) & {
     GetChangedSignal: ({string}) -> Signal,
     GetDescendantsChangedSignal: ({string}) -> Signal,
     GetArrayInsertedSignal: ({string}) -> Signal,
