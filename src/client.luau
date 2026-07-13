@@ -3,12 +3,12 @@ local Replica = require(script.Parent.replica)
 
 type Signal = typeof(LemonSignal.new())
 
-export type Public<T> = (T | {any}) & {
-    GetChangedSignal: ({string}) -> Signal,
-    GetDescendantsChangedSignal: ({string}) -> Signal,
-    GetArrayInsertedSignal: ({string}) -> Signal,
-    GetArrayRemovedSignal: ({string}) -> Signal,
-    GetArrayChangedSignal: ({string}) -> Signal,
+export type Public = {
+    GetChangedSignal: (Public, {string}) -> Signal,
+    GetDescendantsChangedSignal: (Public, {string}) -> Signal,
+    GetArrayInsertedSignal: (Public, {string}) -> Signal,
+    GetArrayRemovedSignal: (Public, {string}) -> Signal,
+    GetArrayChangedSignal: (Public, {string}) -> Signal,
 }
 
 export type State<T> = {
@@ -122,23 +122,23 @@ end
 -- Public Methods
 ----------------------------------------------
 
-function Methods.GetChangedSignal<T>(self: State<T>, path)
+function Methods.GetChangedSignal<T>(self: Public, path)
     return HandleSignal(self.MetaData.Signals.Changed, path)
 end
 
-function Methods.GetDescendantsChangedSignal<T>(self: State<T>, path)
+function Methods.GetDescendantsChangedSignal<T>(self: Public, path)
     return HandleSignal(self.MetaData.Signals.DescendantsChanged, path)
 end
 
-function Methods.GetArrayInsertedSignal<T>(self: State<T>, path)
+function Methods.GetArrayInsertedSignal<T>(self: Public, path)
     return HandleSignal(self.MetaData.Signals.ArrayInserted, path)
 end
 
-function Methods.GetArrayRemovedSignal<T>(self: State<T>, path)
+function Methods.GetArrayRemovedSignal<T>(self: Public, path)
     return HandleSignal(self.MetaData.Signals.ArrayRemoved, path)
 end
 
-function Methods.GetArrayChangedSignal<T>(self: State<T>, path)
+function Methods.GetArrayChangedSignal<T>(self: Public, path)
     return HandleSignal(self.MetaData.Signals.ArrayChanged, path)
 end
 
@@ -146,7 +146,7 @@ end
 -- Constructor
 ----------------------------------------------
 
-function ReactiveState.OnNew<T>(Name: string) : Public<T>
+function ReactiveState.OnNew<T>(Name: string) : T & Public
     ------------------------
     -- State Initialization
     ------------------------
@@ -190,7 +190,7 @@ function ReactiveState.OnNew<T>(Name: string) : Public<T>
         end
     end)
 
-    return State.Data
+    return State.Data :: T & Public
 end
 
 Replica.RequestData()
