@@ -3,16 +3,25 @@ local Replica = require(script.Parent.replica)
 
 type Signal = typeof(LemonSignal.new())
 
-export type State = {
-    Data: {
+export type Public<T> = {
+    Data: T,
 
-    } & {
-        GetChangedSignal: ({string}) -> Signal,
-        GetDescendantsChangedSignal: ({string}) -> Signal,
-        GetArrayInsertedSignal: ({string}) -> Signal,
-        GetArrayRemovedSignal: ({string}) -> Signal,
-        GetArrayChangedSignal: ({string}) -> Signal,
-    },
+    GetChangedSignal: ({string}) -> Signal,
+    GetDescendantsChangedSignal: ({string}) -> Signal,
+    GetArrayInsertedSignal: ({string}) -> Signal,
+    GetArrayRemovedSignal: ({string}) -> Signal,
+    GetArrayChangedSignal: ({string}) -> Signal,
+}
+
+export type State<T> = {
+    Data: T,
+
+    GetChangedSignal: ({string}) -> Signal,
+    GetDescendantsChangedSignal: ({string}) -> Signal,
+    GetArrayInsertedSignal: ({string}) -> Signal,
+    GetArrayRemovedSignal: ({string}) -> Signal,
+    GetArrayChangedSignal: ({string}) -> Signal,
+
     MetaData: {
         Signals: {
             Changed: {[{string}]: Signal},
@@ -115,23 +124,23 @@ end
 -- Public Methods
 ----------------------------------------------
 
-function Methods.GetChangedSignal(self: State, path)
+function Methods.GetChangedSignal<T>(self: State<T>, path)
     return HandleSignal(self.MetaData.Signals.Changed, path)
 end
 
-function Methods.GetDescendantsChangedSignal(self: State, path)
+function Methods.GetDescendantsChangedSignal<T>(self: State<T>, path)
     return HandleSignal(self.MetaData.Signals.DescendantsChanged, path)
 end
 
-function Methods.GetArrayInsertedSignal(self: State, path)
+function Methods.GetArrayInsertedSignal<T>(self: State<T>, path)
     return HandleSignal(self.MetaData.Signals.ArrayInserted, path)
 end
 
-function Methods.GetArrayRemovedSignal(self: State, path)
+function Methods.GetArrayRemovedSignal<T>(self: State<T>, path)
     return HandleSignal(self.MetaData.Signals.ArrayRemoved, path)
 end
 
-function Methods.GetArrayChangedSignal(self: State, path)
+function Methods.GetArrayChangedSignal<T>(self: State<T>, path)
     return HandleSignal(self.MetaData.Signals.ArrayChanged, path)
 end
 
@@ -139,7 +148,7 @@ end
 -- Constructor
 ----------------------------------------------
 
-function ReactiveState.OnNew(Name: string)
+function ReactiveState.OnNew<T>(Name: string) : Public<T>
     ------------------------
     -- State Initialization
     ------------------------

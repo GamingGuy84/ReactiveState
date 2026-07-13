@@ -1,12 +1,12 @@
 local Replica = require(script.Parent.replica)
 
-export type Public = {
-	Destroy: (self: State) -> nil,
-	Batch: (self: State, batchedUpdate: () -> ()) -> nil
+export type Public<T> = {
+	Destroy: (self: State<T>) -> nil,
+	Batch: (self: State<T>, batchedUpdate: () -> ()) -> nil
 }
 
-export type State = {
-	Data: {[string | any]: any},
+export type State<T> = {
+	Data: T,
 	
 	MetaData: {
 		Name: string,
@@ -22,7 +22,7 @@ export type State = {
 		PendingUpdates: {},
 		PendingCursor: number,
 	},
-} & Public
+} & Public<T>
 
 local ReactiveState = {}
 local Methods = {}
@@ -32,7 +32,7 @@ Methods.__index = Methods
 -- General Helpers
 ----------------------------------------------
 
-local function isValid(State: State, path: {string})
+local function isValid<T>(State: State<T>, path: {string})
     local rule = State.MetaData._Schema
 
     for i = 1, #path do
@@ -68,7 +68,7 @@ end
 -- Writing Helpers
 ----------------------------------------------
 
-local function Update(State: State, path, value)
+local function Update<T>(State: State<T>, path, value)
 	if not isValid(State, path, value) then return end
 	
 	local length = #path
@@ -87,7 +87,7 @@ local function Update(State: State, path, value)
 end
 
 -- Catches all writes (from batching and individual)
-local function UpdatePath(State: State, path, value)
+local function UpdatePath<T>(State: State<T>, path, value)
 	local metaData = State.MetaData
 
 	if metaData.Batching then
@@ -178,7 +178,7 @@ end
 -- Public API
 ----------------------------------------------
 
-function Methods.Batch(self: State, callback)
+function Methods.Batch<T>(self: State<T>, callback)
 	local metaData = self.MetaData
 
 	metaData.Batching = true
@@ -206,7 +206,7 @@ function Methods.Batch(self: State, callback)
 	metaData.PendingCursor = 0
 end
 
-function Methods.Destroy(self: State)
+function Methods.Destroy<T>(self: State<T>)
 	local metaData = self.MetaData
 
 	if metaData.Destroyed then
@@ -232,7 +232,7 @@ end
 -- Constructor
 ----------------------------------------------
 
-function ReactiveState.new(Name: string, Params: {Schema: {[string]: boolean}, Data: {[any]: any}?}) : Public
+function ReactiveState.new<T>(Name: string, Params: {Schema: {[string]: boolean}, Data: T? | {}}) : T & Public<T>
 	local Data = Params.Data or {}
 	local Schema = Params.Schema or {}
 
