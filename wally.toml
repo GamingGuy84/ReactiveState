@@ -10,4 +10,5 @@ exclude = ["**"]
 include = ["src", "src/*", "default.project.json", "LICENSE", "wally.toml", "README.md"]
 
 [dependencies]
-Replica = "ivasmigins/replica@0.1.0"
+replica = "ivasmigins/replica@0.1.0"
+lemonsignal = "data-oriented-house/lemonsignal@1.11.0"

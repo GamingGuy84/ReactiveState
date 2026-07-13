@@ -1,14 +1,6 @@
 {
   "name": "reactivestate",
   "tree": {
-    "$className": "DataModel",
-
-    "ReplicatedStorage": {
-      "$className": "ReplicatedStorage",
-      
-      "ReactiveState": {
-        "$path": "src/ReactiveState"
-      }
-    }
+    "$path": "src"
   }
 }
