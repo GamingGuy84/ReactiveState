@@ -1,154 +1,146 @@
 # ReactiveState
 
-ReactiveState is a lightweight Luau state layer for Roblox that sits on top of Replica. It gives you a simple, proxy-based state tree on the server and a mirrored, event-driven view on the client.
+ReactiveState is a lightweight Luau state layer for Roblox built on top of Replica. It gives you a schema-aware, proxy-based server state and a mirrored, event-driven client view for shared data.
 
-The module is split into two entry points:
+---
 
-- `ReactiveState.client` for listening to replica-backed state changes
-- `ReactiveState.server` for creating and updating server-owned state
+## Features
 
-## How it works
+- Proxy-based server state with natural table syntax
+- Server-side schema validation for writes
+- Batched updates with `:Batch(...)`
+- Replica-backed replication to clients
+- Event-driven client signals for changes, descendants, arrays, and dictionaries
+- Simple `Get` and `OnReady` APIs for client-side reads
 
-ReactiveState uses Replica as the transport and replication mechanism.
+---
 
-- On the server, `ReactiveState.server.new(...)` creates a Replica-backed state object, exposes a proxy for writing data, and replicates updates to connected clients.
-- On the client, `ReactiveState.client.OnNew(...)` subscribes to a Replica by name and mirrors the current data into a local state object.
+## Installation
 
-In other words, ReactiveState does not replace Replica; it provides a convenient reactive wrapper around it.
-
-## Client API
-
-The client module is exposed through `require(...).client`.
-
-### `OnNew(Name: string)`
-
-Creates a local reactive state view for a Replica with the given name.
+Place ReactiveState in a shared location such as ReplicatedStorage and require it from scripts on both sides:
 
 ```lua
 local ReactiveState = require(path.to.ReactiveState)
-local client = ReactiveState.client
-
-local data, signals = client.OnNew("MyState")
-
-print(data.SomeKey)
-
-signals.OnAdded:Connect(function(value)
-    print("Added:", value)
-end)
-
-signals.OnUpdated:Connect(function(path, newValue)
-    print("Updated:", path, newValue)
-end)
-
-signals.OnDestroyed:Connect(function(value)
-    print("Destroyed:", value)
-end)
 ```
 
-### Client types
+The module exposes two entry points:
 
 ```lua
-export type State = {
-    Data: {[string | any]: any},
-
-    Signals: Signals,
-}
-
-export type Signals = {
-    OnAdded: lemonsignal.Signal<any>,
-    OnDestroyed: lemonsignal.Signal<any>,
-    OnUpdated: lemonsignal.Signal<{string | any}, any>,
-}
+local client = ReactiveState.client
+local server = ReactiveState.server
 ```
 
-### Client behavior
+---
 
-- `Data` is the current mirrored state tree.
-- `Signals.OnAdded` fires when a new table-based value is introduced.
-- `Signals.OnUpdated` fires when an existing value changes.
-- `Signals.OnDestroyed` fires when a table-based value is removed.
-
-## Server API
-
-The server module is exposed through `require(...).server`.
-
-### `new(Name: string, Params)`
-
-Creates a new server-managed state object and returns a proxy that can be used like a normal table.
+## Server Example
 
 ```lua
 local ReactiveState = require(path.to.ReactiveState)
 local server = ReactiveState.server
 
-local state = server.new("MyState", {
+local state = server.new("PlayerState", {
     Schema = {
-        Player = true,
         Health = true,
+        Stats = {
+            Damage = true,
+        },
     },
     Data = {
-        Player = {
-            Name = "Alice",
-            Health = 100,
+        Health = 100,
+        Stats = {
+            Damage = 10,
         },
     },
 })
 
-state.Player.Health = 90
+state.Health = 90
 
 state:Batch(function()
-    state.Player.Health = 80
-    state.Player.Name = "Bob"
+    state.Health = 80
+    state.Stats.Damage = 15
 end)
 
 state:Destroy()
 ```
 
-### Server methods
+---
 
-- `state:Batch(callback)`
-  - Buffers writes and applies them together.
-  - Useful for making a sequence of edits appear as one update.
-
-- `state:Destroy()`
-  - Tears down the server state and destroys its underlying Replica.
-
-### Server types
+## Client Example
 
 ```lua
-export type Public = {
-    Destroy: (self: State) -> nil,
-    Batch: (self: State, batchedUpdate: () -> ()) -> nil,
-}
+local ReactiveState = require(path.to.ReactiveState)
+local client = ReactiveState.client
 
-export type State = {
-    Data: {[string | any]: any},
+local state = client.OnNew("PlayerState")
 
-    MetaData: {
-        Name: string,
-        Replica: any,
-        _Schema: {
-            [string]: boolean | any,
-        },
-        CompiledSchema: {
-            [string]: boolean | any,
-        },
-        Batching: boolean,
+state:OnReady(function()
+    print("Health:", state:Get({"Health"}))
+end)
 
-        PendingUpdates: {},
-        PendingCursor: number,
-    },
-} & Public
+local healthSignal = state:GetChangedSignal({"Health"})
+healthSignal:Connect(function(newValue, oldValue, path)
+    print("Health changed:", newValue, oldValue, path)
+end)
 ```
 
-### Server behavior
+---
 
-- Writes are validated against the provided schema.
-- Nested table values are turned into proxy-friendly shapes.
-- Updates are sent through the underlying Replica instance.
-- The returned object is a proxy, so reading and assigning values feels natural while still routing updates through the replica layer.
+## API
 
-## Notes
+### Server
 
-- ReactiveState is designed for small-to-medium reactive state trees rather than full ECS-style systems.
-- The server API should be used when you want authoritative state changes.
-- The client API should be used when you want a local, reactive view of shared state.
+```lua
+local server = ReactiveState.server
+
+local state = server.new(Name: string, Params: {
+    Schema: {[string]: boolean | any},
+    Data: T? | {}
+})
+```
+
+Methods:
+
+```lua
+state:Batch(callback)
+state:Destroy()
+```
+
+The server-side object is a proxy, so writes such as `state.Health = 100` are routed through the replica layer.
+
+### Client
+
+```lua
+local client = ReactiveState.client
+
+local state = client.OnNew(Name: string)
+```
+
+Methods:
+
+```lua
+state:OnReady(callback)
+state:Get(path: {string})
+state:GetChangedSignal(path)
+state:GetDescendantsChangedSignal(path)
+state:GetArrayInsertedSignal(path)
+state:GetArrayRemovedSignal(path)
+state:GetArrayChangedSignal(path)
+state:GetDictionaryAddedSignal(path)
+state:GetDictionaryRemovedSignal(path)
+state:GetDictionaryChangedSignal(path)
+```
+
+---
+
+## How It Works
+
+ReactiveState uses Replica as the replication transport. On the server, updates are written to a proxy-backed state object and forwarded to a Replica instance. On the client, the same Replica is observed and mirrored into a local state table. The result is a natural table-like API that still stays synced across the network.
+
+---
+
+## Limitations
+
+- Best suited for small-to-medium state trees rather than large ECS-style worlds
+- Server writes are validated against the provided schema
+- The client view is a snapshot of the currently replicated state and updates through change signals
+- The package assumes you are already using or are willing to use Replica as the transport layer

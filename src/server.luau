@@ -1,4 +1,4 @@
-local Replica = require(script.Parent.replica)
+local Replica = require(script.Parent.Parent.replica)
 
 export type Public<T> = {
 	Destroy: (self: State<T>) -> nil,
@@ -33,27 +33,31 @@ Methods.__index = Methods
 ----------------------------------------------
 
 local function isValid<T>(State: State<T>, path: {string})
-    local rule = State.MetaData._Schema
+	local rule = State.MetaData._Schema
 
-    for i = 1, #path do
-        if type(rule) ~= "table" then
-            return false
-        end
+	for i = 1, #path do
+		if type(rule) ~= "table" then
+			return false
+		end
 
-        rule = rule[path[i]] or rule.all
+		rule = rule[path[i]] or rule.all
 
-        if rule == nil then
-            return false
-        end
-    end
+		if rule == nil then
+			return false
+		end
+	end
 
-    return rule == true or type(rule) == "table"
+	return rule == true or rule == "all" or type(rule) == "table"
 end
 
 local function CreateShape(data, schema)
 	local result = {}
 
 	for key, value in schema do
+		if key == "all" then
+			continue
+		end
+
 		if type(value) == "table" then
 			result[key] = CreateShape(data[key] or {}, value)
 		else
@@ -68,9 +72,9 @@ end
 -- Writing Helpers
 ----------------------------------------------
 
-local function Update<T>(State: State<T>, path, value)
-	if not isValid(State, path, value) then return end
-	
+local function Update<T>(State, path, value)
+	if not isValid(State, path) then return end
+
 	local length = #path
 	if not length or length == 0 then 
 		return
@@ -87,7 +91,7 @@ local function Update<T>(State: State<T>, path, value)
 end
 
 -- Catches all writes (from batching and individual)
-local function UpdatePath<T>(State: State<T>, path, value)
+local function UpdatePath(State, path, value)
 	local metaData = State.MetaData
 
 	if metaData.Batching then
@@ -111,67 +115,71 @@ local ProxyCache = setmetatable({}, {
 })
 
 local function CreateProxy(State, target, path, depth, currentKey)
-    depth = depth or 0
+	depth = depth or #path
 
-    if currentKey ~= nil then
-        path[depth + 1] = currentKey
-        depth += 1
-    end
+	local newPath = path
 
-    local cache = ProxyCache[target]
-    if not cache then
-        cache = {}
-        ProxyCache[target] = cache
-    end
+	if currentKey ~= nil then
+		newPath = table.clone(path)
+		newPath[#newPath + 1] = currentKey
+	end
 
-    local node = cache
-    for i = 1, depth do
-        local key = path[i]
+	local cache = ProxyCache[target]
+	if not cache then
+		cache = {}
+		ProxyCache[target] = cache
+	end
 
-        local nextNode = node[key]
-        if not nextNode then
-            nextNode = {}
-            node[key] = nextNode
-        end
+	local node = cache
+	for i = 1, #newPath do
+		local key = newPath[i]
 
-        node = nextNode
-    end
+		local nextNode = node[key]
+		if not nextNode then
+			nextNode = {}
+			node[key] = nextNode
+		end
 
-    if node.__proxy then
-        return node.__proxy
-    end
+		node = nextNode
+	end
 
-    local proxy = {}
-    node.__proxy = proxy
+	if node.__proxy then
+		return node.__proxy
+	end
 
-    setmetatable(proxy, {
-        __index = function(_, k)
-            local value = target[k]
+	local proxy = {}
+	node.__proxy = proxy
 
-            if type(value) == "table" then
-                return CreateProxy(
-                    State,
-                    value,
-                    path,
-                    depth,
-                    k
-                )
-            end
+	setmetatable(proxy, {
+		__index = function(_, k)
+			local value = target[k]
+		
+			if type(value) == "table" then
+				return CreateProxy(
+					State,
+					value,
+					newPath,
+					#newPath,
+					k
+				)
+			end
+		
+			if value ~= nil then
+				return value
+			end
+		
+			return State[k]
+		end,
+	
+		__newindex = function(_, k, value)
+			local updatePath = table.clone(newPath)
+			updatePath[#updatePath + 1] = k
 
-            if value ~= nil then
-                return value
-            end
+			UpdatePath(State, updatePath, value)
+		end
+	})
 
-            return State[k]
-        end,
-
-        __newindex = function(_, k, value)
-            target[k] = value
-            UpdatePath(State, target, k, value)
-        end
-    })
-
-    return proxy
+	return proxy
 end
 
 ----------------------------------------------
@@ -238,9 +246,9 @@ function ReactiveState.new<T>(Name: string, Params: {Schema: {[string]: boolean}
 
 	Data = CreateShape(Data, Schema)
 
-    ------------------------
-    -- Replica Initialization
-    ------------------------
+	------------------------
+	-- Replica Initialization
+	------------------------
 
 	local token = Replica.Token(Name)
 	local replica = Replica.New({
@@ -248,9 +256,9 @@ function ReactiveState.new<T>(Name: string, Params: {Schema: {[string]: boolean}
 		Token = token
 	})
 
-    ------------------------
-    -- State Initialization
-    ------------------------
+	------------------------
+	-- State Initialization
+	------------------------
 
 	local State = {
 		Data = Data,
@@ -267,17 +275,17 @@ function ReactiveState.new<T>(Name: string, Params: {Schema: {[string]: boolean}
 		}
 	}
 
-    setmetatable(State, Methods)
+	setmetatable(State, Methods)
 
-    ------------------------
-    -- Proxy Initialization
-    ------------------------
+	------------------------
+	-- Proxy Initialization
+	------------------------
 
-    local proxy = CreateProxy(State, State.Data, {})
+	local proxy = CreateProxy(State, State.Data, {})
 
 	replica:Replicate()
 
-    return proxy
+	return proxy
 end
 
 return ReactiveState
