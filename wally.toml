@@ -1,6 +1,6 @@
 [package]
 name = "gamingguy84/reactivestate"
-version = "0.1.7"
+version = "0.1.8"
 description = "A idiomatic state replication package."
 license = "MIT"
 authors = ["GamingGuy84"]
